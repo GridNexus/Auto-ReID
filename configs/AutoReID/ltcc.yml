@@ -1,6 +1,3 @@
-# Auto-ReID configuration for LTCC (long-term cloth-changing)
-# Expected: mAP=66.3%, Rank-1=79.7%
-
 MODEL:
   DEVICE_ID: '0'
 

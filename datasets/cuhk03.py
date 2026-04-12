@@ -1,25 +1,5 @@
 # encoding: utf-8
-"""
-CUHK03 dataset loader.
-Paper stats: 13,164 images, 1,467 IDs, 2 cameras.
 
-Supports both 'detected' (bounding box detection) and
-'labeled' (manually labeled) splits with the standard
-new-protocol (767 train / 700 test split).
-
-Expected directory structure under root/cuhk03-np/:
-    cuhk03-np/
-    ├── detected/
-    │   ├── bounding_box_train/   # training images
-    │   ├── query/                # query images
-    │   └── bounding_box_test/    # gallery images
-    └── labeled/
-        ├── bounding_box_train/
-        ├── query/
-        └── bounding_box_test/
-
-Filename format: <pid>_<camid>_<imgid>.jpg  (e.g., 0001_c1_00001.jpg)
-"""
 
 import glob
 import re

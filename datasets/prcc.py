@@ -1,36 +1,5 @@
 # encoding: utf-8
-"""
-PRCC (Person Re-identification by Contour Sketch under Moderate Clothing Change)
-dataset loader.
-Stats: 33,698 images, 221 IDs.
 
-Reference:
-    Yang et al. Person Re-identification by Contour Sketch under Moderate
-    Clothing Change. TPAMI 2020.
-
-Cameras:
-    A - reference (same clothes, indoor)
-    B - same clothes (indoor, different background)
-    C - cloth-changing (different clothes)
-
-Standard evaluation protocol for cloth-changing ReID:
-    - Train: cameras A + B, all IDs
-    - Query: camera C (cloth-changing)
-    - Gallery: camera A (reference appearance)
-
-Expected directory structure under root/PRCC/:
-    PRCC/
-    ├── rgb/
-    │   ├── train/
-    │   │   ├── <pid>/
-    │   │   │   ├── A/  (camera A images)
-    │   │   │   └── B/  (camera B images)
-    │   ├── val/        (not used in standard protocol)
-    │   └── test/
-    │       ├── <pid>/
-    │       │   ├── A/  (gallery: reference appearance)
-    │       │   └── C/  (query: cloth-changing)
-"""
 
 import os
 import os.path as osp

@@ -1,33 +1,5 @@
 # encoding: utf-8
-"""
-LTCC (Long-Term Cloth-Changing person re-identification) dataset loader.
-Stats: 17,119 images, 152 IDs, 12 cameras.
 
-Reference:
-    Qian et al. Long-Term Cloth-Changing Person Re-identification.
-    ACCV 2020. arXiv:2005.12633.
-
-Standard evaluation protocol:
-    - General (same-clothes): query and gallery may share same outfit
-    - Cloth-changing: query outfit differs from gallery outfit
-
-Expected directory structure under root/LTCC/:
-    LTCC/
-    ├── train/
-    │   └── <image>.jpg       # flat directory with filename encoding
-    ├── query/
-    │   └── <image>.jpg
-    └── test/
-        └── <image>.jpg       # gallery
-
-Filename format: <pid>_<outfitid>_c<camid>_<seq>.jpg
-    e.g., 001_1_c1_0001.jpg → pid=1, outfit=1, camid=0 (0-indexed)
-
-For cloth-changing evaluation, outfit IDs in query and gallery differ.
-The dataset also provides split files for cloth-changing protocol.
-If split files are provided, they are used; otherwise fall back to
-directory-based loading which covers the general protocol.
-"""
 
 import glob
 import os

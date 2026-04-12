@@ -1,5 +1,3 @@
-# Auto-ReID configuration for Market-1501
-# Expected: mAP=97.1%, Rank-1=97.8%
 
 MODEL:
   DEVICE_ID: '0'

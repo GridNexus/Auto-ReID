@@ -1,24 +1,3 @@
-"""
-hpt_dataset.py - Hierarchical Progressive Tuning dataset construction.
-
-Implements training data for both stages of HPT:
-
-Stage 1: Fine-Grained Attribute Alignment
-    - Single-image instruction-following: generate structured description
-    - Fixed prompt P_struct elicits comprehensive attribute-oriented analysis
-    - Dataset: Market-1501, MSMT17 training images
-
-Stage 2: Identity Verification and Feedback Generation
-    Seven auxiliary tasks:
-    T1. Attribute Annotations Matching
-    T2. Attribute Difference Mining (two images)
-    T3. Image-to-Image Matching (same person? Yes/No)
-    T4. Image-to-Images Retrieval (find target in gallery)
-    T5. Image-to-Texts Retrieval (select best caption)
-    T6. Text-to-Image Matching (does image match caption? Yes/No)
-    T7. Text-to-Images Retrieval (pick image matching caption)
-"""
-
 import os
 import random
 from typing import Any, Dict, List, Optional, Tuple
@@ -72,22 +51,6 @@ _T7_INSTRUCTION = (
 
 
 class HPTStage1Dataset(Dataset):
-    """
-    Stage 1: Fine-Grained Attribute Alignment dataset.
-
-    Each sample is a single image with the structured P_struct prompt.
-    The model should produce a comprehensive, attribute-oriented description.
-    Target descriptions are either:
-        (a) Cached VLM-generated descriptions (preferred for training)
-        (b) Placeholder that forces structured output format
-
-    Args:
-        image_list: List of (img_path, pid, camid) tuples from any ReID dataset.
-        descriptions: Optional dict mapping img_path → target description string.
-                      If None, the model generates its own training targets
-                      (self-supervised attribute alignment).
-        transform:   Optional image transform (for preprocessing).
-    """
 
     def __init__(
         self,
@@ -121,22 +84,6 @@ class HPTStage1Dataset(Dataset):
 
 
 class HPTStage2Dataset(Dataset):
-    """
-    Stage 2: Identity Verification and Feedback Generation dataset.
-
-    Constructs 7 types of training samples from ReID datasets.
-    Positive pairs: same PID, different camera.
-    Negative pairs: different PID.
-
-    Args:
-        image_list:    List of (img_path, pid, camid, ...) tuples.
-        descriptions:  Dict mapping img_path → pre-generated text descriptions.
-        task_weights:  Probabilities for each task type [T1..T7].
-        num_gallery:   Number of gallery images for T4/T7 tasks.
-        num_negatives: Number of negative samples for hard tasks.
-        transform:     Optional image transform.
-        seed:          Random seed for reproducibility.
-    """
 
     _DEFAULT_WEIGHTS = [0.15, 0.15, 0.20, 0.15, 0.10, 0.15, 0.10]
 
@@ -201,11 +148,6 @@ class HPTStage2Dataset(Dataset):
     # ------------------------------------------------------------------
 
     def _build_t1(self, img_path: str, pid: int) -> Dict[str, Any]:
-        """
-        T1: Attribute Annotations Matching
-        Input:  <Image> + "Extract and list the visible attributes..."
-        Output: attribute list
-        """
         image = self._load(img_path)
         desc = self.descriptions.get(img_path, "")
         return {
@@ -216,11 +158,6 @@ class HPTStage2Dataset(Dataset):
         }
 
     def _build_t2(self, img_path: str, pid: int) -> Dict[str, Any]:
-        """
-        T2: Attribute Difference Mining
-        Input:  <Image1> <Image2> + compare instruction
-        Output: Shared: ... Unique to A: ... Unique to B: ...
-        """
         image_a = self._load(img_path)
         # Sample a negative (different identity) for contrast
         neg_pid = random.choice([p for p in self.all_pids if p != pid])
@@ -242,10 +179,6 @@ class HPTStage2Dataset(Dataset):
         }
 
     def _build_t3(self, img_path: str, pid: int) -> Dict[str, Any]:
-        """
-        T3: Image-to-Image Matching (same person? Yes/No + reasoning)
-        50% positive pairs, 50% negative pairs.
-        """
         image_a = self._load(img_path)
         is_positive = random.random() > 0.5
 
@@ -268,11 +201,6 @@ class HPTStage2Dataset(Dataset):
         }
 
     def _build_t4(self, img_path: str, pid: int) -> Dict[str, Any]:
-        """
-        T4: Image-to-Images Retrieval
-        Input:  <QueryImage> <Gallery images (positives + negatives)>
-        Output: indices of images containing the target pedestrian
-        """
         image_q = self._load(img_path)
 
         # Positive images: same PID, different images
@@ -307,12 +235,6 @@ class HPTStage2Dataset(Dataset):
         }
 
     def _build_t5(self, img_path: str, pid: int) -> Dict[str, Any]:
-        """
-        T5: Image-to-Texts Retrieval
-        Input:  <Image> + "Identify the most accurate description from options:"
-                <Caption 1> <Caption 2> <Caption 3>
-        Output: "Option N describes the image best."
-        """
         image = self._load(img_path)
         desc_correct = self.descriptions.get(img_path, "a person in the image")
 
@@ -340,11 +262,6 @@ class HPTStage2Dataset(Dataset):
         }
 
     def _build_t6(self, img_path: str, pid: int) -> Dict[str, Any]:
-        """
-        T6: Text-to-Image Matching
-        Input:  <Image> <Caption>
-        Output: Yes or No
-        """
         image = self._load(img_path)
         is_match = random.random() > 0.5
 
@@ -367,11 +284,6 @@ class HPTStage2Dataset(Dataset):
         }
 
     def _build_t7(self, img_path: str, pid: int) -> Dict[str, Any]:
-        """
-        T7: Text-to-Images Retrieval
-        Input:  <multiple candidate images> + caption
-        Output: "Image <X> matches the description."
-        """
         desc_query = self.descriptions.get(img_path, "a person")
 
         # Positive: another image of same person

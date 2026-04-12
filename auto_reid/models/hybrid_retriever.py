@@ -1,26 +1,3 @@
-"""
-hybrid_retriever.py - Hybrid Retriever module for Auto-ReID.
-
-Implements the Hybrid Retriever ("Anchored Semantic Search"):
-
-    "We employ a dual-encoder scheme that balances semantic guidance with
-     visual fidelity. A text encoder f_txt (from CLIP) embeds the textual
-     query T_q^(t) into h_q^(t). The similarity between the query and a
-     gallery image I_g is a convex combination of visual and textual
-     similarities:"
-
-    S^(t)(I_q, I_g) = α · (v_q · v_g)/(||v_q|| ||v_g||)
-                    + (1-α) · (h_q^(t) · h_g)/(||h_q^(t)|| ||h_g||)   ... (3)
-
-    where:
-        v_g = f_vis(I_g)
-        h_g = f_txt(φ(I_g))      φ(I_g) = generic caption or filename
-        α = 0.65  (default best value; equivalent to λ1=0.65, λ2=0.35)
-
-Visual encoder: SigLIP2-base-patch16-224 (f_vis) — fixed visual anchor
-Text encoder:   SigLIP2-base-patch16-224 (f_txt) — dynamic text queries
-"""
-
 import logging
 import os
 from typing import Dict, List, Optional, Tuple
@@ -35,29 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 class HybridRetriever:
-    """
-    Anchored Semantic Search retriever.
-
-    The visual anchor v_q = f_vis(I_q) is computed once and remains FIXED
-    throughout all correction iterations — this prevents catastrophic drift
-    due to erroneous text descriptions.
-
-    The text term h_q^(t) = f_txt(T_q^(t)) is updated each iteration,
-    allowing the search focus to be iteratively refined.
-
-    Usage:
-        retriever = HybridRetriever(alpha=0.65)
-        # Pre-index gallery (done once before the loop)
-        retriever.index_gallery(gallery_images, gallery_captions)
-        # Compute fixed visual anchor for query
-        v_q = retriever.extract_visual_anchor(query_image)
-        # Encode dynamic text query (updated each iteration)
-        h_q = retriever.encode_text(text_desc)
-        # Retrieve top-K candidates
-        topk_indices = retriever.retrieve_topk(v_q, h_q, k=20)
-        # Full gallery ranking (for final output)
-        scores = retriever.compute_scores(v_q, h_q)
-    """
 
     # SigLIP2-base-patch16-224 processes 224×224 images
     _IMG_SIZE = 224
@@ -69,14 +23,6 @@ class HybridRetriever:
         device: str = "cuda",
         torch_dtype: torch.dtype = torch.float32,
     ):
-        """
-        Args:
-            encoder_name: HuggingFace model ID for SigLIP2 visual+text encoder.
-            alpha: Modality mixing coefficient α (visual weight). Default 0.65.
-                   Text weight = (1 - α) = 0.35.
-            device: Device string for torch tensors.
-            torch_dtype: Computation dtype.
-        """
         self.alpha = alpha
         self.device = device
         self.dtype = torch_dtype
@@ -105,15 +51,6 @@ class HybridRetriever:
         captions: Optional[List[str]] = None,
         batch_size: int = 64,
     ) -> None:
-        """
-        Pre-compute and cache gallery visual features v_g and text features h_g.
-
-        Args:
-            images: List of gallery PIL images.
-            captions: Optional list of generic captions φ(I_g) or filenames.
-                      If None, empty strings are used (text branch uses zeros).
-            batch_size: Batch size for encoding (trade-off memory vs speed).
-        """
         if captions is None:
             captions = ["" for _ in images]
         assert len(images) == len(captions), \
@@ -161,13 +98,6 @@ class HybridRetriever:
 
     @torch.no_grad()
     def encode_text(self, text: str) -> torch.Tensor:
-        """
-        Encode a text description into h_q^(t) = f_txt(T_q^(t)).
-        Called at each iteration with the updated description.
-
-        Returns:
-            Normalized text feature vector of shape [D].
-        """
         feat = self._encode_texts([text])    # [1, D]
         return feat.squeeze(0)               # [D]
 
@@ -180,19 +110,6 @@ class HybridRetriever:
         v_q: torch.Tensor,
         h_q: torch.Tensor,
     ) -> torch.Tensor:
-        """
-        Compute hybrid similarity scores for all gallery images.
-
-        Implements Equation (3):
-            S^(t) = α · cos(v_q, v_g) + (1-α) · cos(h_q^(t), h_g)
-
-        Args:
-            v_q: Visual anchor [D], normalized.
-            h_q: Text query [D], normalized.
-
-        Returns:
-            Scores tensor of shape [N] (one score per gallery image).
-        """
         assert self._gallery_vis is not None, \
             "Call index_gallery() before retrieve_topk()"
 
@@ -214,17 +131,6 @@ class HybridRetriever:
         h_q: torch.Tensor,
         k: int = 20,
     ) -> List[int]:
-        """
-        Retrieve indices of the top-K gallery candidates.
-
-        Args:
-            v_q: Visual anchor [D].
-            h_q: Text query [D].
-            k: Number of candidates to return.
-
-        Returns:
-            List of gallery indices (0-indexed), sorted by descending score.
-        """
         scores = self.compute_scores(v_q, h_q)  # [N]
         k = min(k, self._gallery_size)
         topk_vals, topk_idx = torch.topk(scores, k)
@@ -235,12 +141,6 @@ class HybridRetriever:
         v_q: torch.Tensor,
         h_q: torch.Tensor,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Rank the full gallery by hybrid similarity (descending).
-
-        Returns:
-            (sorted_indices, scores): numpy arrays of shape [N].
-        """
         scores = self.compute_scores(v_q, h_q).cpu().numpy()
         sorted_idx = np.argsort(-scores)    # descending
         return sorted_idx, scores[sorted_idx]
@@ -255,20 +155,6 @@ class HybridRetriever:
         v_q: torch.Tensor,
         top_n: int = 200,
     ) -> List[int]:
-        """
-        Stage 1 of two-stage evaluation: fast visual pre-filtering.
-
-        "We compute the similarity between the query and all gallery images
-         using E_vis and keep a shortlist (top-N or those above a threshold).
-         This step is fast and ensures that the candidate set retains high recall."
-
-        Args:
-            v_q: Visual anchor [D].
-            top_n: Shortlist size.
-
-        Returns:
-            List of gallery indices in the shortlist.
-        """
         assert self._gallery_vis is not None
         vis_sim = torch.mv(self._gallery_vis, v_q)   # [N]
         top_n = min(top_n, self._gallery_size)
@@ -281,10 +167,6 @@ class HybridRetriever:
 
     @torch.no_grad()
     def _encode_images(self, images: List[Image.Image]) -> torch.Tensor:
-        """
-        Encode a batch of PIL images with the SigLIP2 vision encoder.
-        Returns L2-normalized features of shape [B, D].
-        """
         inputs = self.processor(
             images=images,
             return_tensors="pt",
@@ -299,10 +181,6 @@ class HybridRetriever:
 
     @torch.no_grad()
     def _encode_texts(self, texts: List[str]) -> torch.Tensor:
-        """
-        Encode a batch of text strings with the SigLIP2 text encoder.
-        Returns L2-normalized features of shape [B, D].
-        """
         inputs = self.processor(
             text=texts,
             return_tensors="pt",

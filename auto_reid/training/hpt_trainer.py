@@ -1,22 +1,3 @@
-"""
-hpt_trainer.py - Hierarchical Progressive Tuning (HPT) two-stage LoRA trainer.
-
-Keeps the base VLM weights frozen and applies parameter-efficient
-Low-Rank Adaptation (LoRA) to the attention layers.
-
-    Stage 1: Fine-Grained Attribute Alignment
-    Stage 2: Identity Verification and Feedback Generation
-
-Training configuration:
-    - Backbone: InternVL3.5-8B (OpenGVLab/InternVL2_5-8B)
-    - LoRA rank: 16
-    - LoRA target modules: attention layers (q_proj, v_proj, k_proj, o_proj)
-    - Learning rate: 1e-5
-    - Epochs: 3
-    - Batch size: 4 per GPU (×4 GPUs = 16 effective)
-    - Recommended hardware: 4×NVIDIA A100 GPUs
-"""
-
 import logging
 import os
 from typing import Dict, List, Optional, Tuple, Any
@@ -35,28 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 class HPTTrainer:
-    """
-    Hierarchical Progressive Tuning trainer.
-
-    Manages LoRA fine-tuning of InternVL3.5-8B across two stages:
-      Stage 1 — attribute alignment (structured description generation)
-      Stage 2 — multi-task identity verification and feedback generation
-
-    Usage:
-        trainer = HPTTrainer(cfg)
-        # Stage 1
-        trainer.train_stage1(image_list, output_dir="output/stage1")
-        # Stage 2 (initializes from Stage 1 checkpoint)
-        trainer.train_stage2(image_list, descriptions,
-                             stage1_ckpt="output/stage1",
-                             output_dir="output/stage2")
-    """
 
     def __init__(self, cfg):
-        """
-        Args:
-            cfg: YACS config node. Reads AUTO_REID.* fields.
-        """
         self.cfg = cfg
         self.device = (
             f"cuda:{cfg.MODEL.DEVICE_ID}"
@@ -82,19 +43,6 @@ class HPTTrainer:
         descriptions: Optional[Dict[str, str]] = None,
         output_dir: str = "output/hpt_stage1",
     ) -> str:
-        """
-        Stage 1 training: teach the VLM to generate structured attribute
-        descriptions using the P_struct template.
-
-        Args:
-            image_list:   List of (img_path, pid, camid) tuples from ReID datasets.
-            descriptions: Optional pre-computed descriptions for supervised training.
-                          If None, model trains with the P_struct prompt self-supervised.
-            output_dir:   Directory to save Stage 1 LoRA checkpoint.
-
-        Returns:
-            Path to saved checkpoint directory.
-        """
         logger.info("=" * 60)
         logger.info("HPT Stage 1: Fine-Grained Attribute Alignment")
         logger.info("VLM: %s", self.vlm_model_path)
@@ -168,19 +116,6 @@ class HPTTrainer:
         stage1_ckpt: Optional[str] = None,
         output_dir: str = "output/hpt_stage2",
     ) -> str:
-        """
-        Stage 2 training: teach the VLM the seven auxiliary tasks for
-        pairwise verification, attribute Q&A, and corrective feedback.
-
-        Args:
-            image_list:   List of (img_path, pid, camid) tuples.
-            descriptions: Dict of img_path → text description (from Stage 1).
-            stage1_ckpt:  Path to Stage 1 LoRA checkpoint (None = fresh LoRA).
-            output_dir:   Directory to save Stage 2 LoRA checkpoint.
-
-        Returns:
-            Path to saved checkpoint directory.
-        """
         logger.info("=" * 60)
         logger.info("HPT Stage 2: Identity Verification & Feedback Generation")
         logger.info("7 auxiliary tasks (Figure 2 in paper)")
@@ -260,10 +195,6 @@ class HPTTrainer:
         tokenizer,
         batch: Dict[str, Any],
     ) -> torch.Tensor:
-        """
-        Single Stage 1 training step: causal language modeling loss.
-        The model is trained to generate structured descriptions given P_struct.
-        """
         # Build prompt: <image>\n{P_struct}
         # Target: {structured description}
         # Loss: cross-entropy on target tokens only
@@ -293,10 +224,6 @@ class HPTTrainer:
         tokenizer,
         batch: Dict[str, Any],
     ) -> Tuple[torch.Tensor, str]:
-        """
-        Single Stage 2 training step: multi-task instruction following.
-        Returns (loss, task_name).
-        """
         task_name = batch.get("task", "unknown")
         images_list = batch["images_list"]   # List[List[PIL]]
         prompts = batch["prompts"]
@@ -332,10 +259,6 @@ class HPTTrainer:
         question: str,
         target: str,
     ) -> torch.Tensor:
-        """
-        Compute causal language modeling loss on target tokens.
-        Uses InternVL's built-in chat-based loss computation.
-        """
         try:
             # Tokenize input + target
             input_text = question + " " + target
@@ -370,13 +293,6 @@ class HPTTrainer:
         self,
         lora_checkpoint: Optional[str] = None,
     ) -> Tuple[nn.Module, Any]:
-        """
-        Load InternVL3.5-8B and apply LoRA adapters.
-
-        If lora_checkpoint is provided, loads an existing LoRA checkpoint
-        (for Stage 2 initialization from Stage 1 weights).
-        Otherwise, creates fresh LoRA adapters.
-        """
         logger.info("Loading tokenizer from %s", self.vlm_model_path)
         tokenizer = AutoTokenizer.from_pretrained(
             self.vlm_model_path,
@@ -434,7 +350,6 @@ class HPTTrainer:
     # ------------------------------------------------------------------
 
     def _preprocess_image(self, image) -> torch.Tensor:
-        """Preprocess PIL image for InternVL (448×448, normalized)."""
         from torchvision import transforms
         from PIL import Image as PILImage
 

@@ -1,7 +1,3 @@
-# Auto-ReID configuration for CUHK03
-# Expected: mAP=92.4%, Rank-1=93.1%
-# Uses new-protocol split: 767 train IDs / 700 test IDs
-
 MODEL:
   DEVICE_ID: '0'
 

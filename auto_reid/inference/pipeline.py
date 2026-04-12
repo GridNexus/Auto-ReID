@@ -1,46 +1,3 @@
-"""
-pipeline.py - Full Auto-ReID iterative self-correction inference pipeline.
-
-Implements Algorithm 1:
-
-    Algorithm 1: Auto-ReID inference process.
-    ──────────────────────────────────────────────────────────────────────
-    Input:  Query image I_q, gallery G = {I_i^g}_{i=1}^N,
-            max iterations T_max, candidate size K, consistency threshold τ_low
-    Parameter: Tuned VLM M_ReID, visual encoder f_vis,
-               text encoder f_txt, mixing coefficient α
-    ──────────────────────────────────────────────────────────────────────
-    1:  v_q ← f_vis(I_q)                   {Visual anchor}
-    2:  T_q ← M_ReID(I_q, P_struct)        {Initial description}
-    3:  C_prev ← ∅
-    4:  for t = 0 to T_max − 1 do
-    5:      // Hybrid retrieval
-    6:      for each I_g ∈ G do
-    7:          S ← α·sim(v_q, f_vis(I_q)) + (1−α)·sim(f_txt(T_q), f_txt(φ(I_g)))
-    8:      end for
-    9:      C ← top-K by S
-   10:      if t = T_max − 1 then
-   11:          return C                    {Final iteration: return results}
-   12:      end if
-   13:      // Correction
-   14:      A ← Parse(T_q)
-   15:      F ← Verify(C, A, τ_low)
-   16:      if F = ∅ and IoU(C, C_prev) > 0.9 then
-   17:          return C                    {Early termination}
-   18:      end if
-   19:      // Reasoning
-   20:      T_q ← M_ReID(I_q, T_q, F)
-   21:      C_prev ← C
-   22:  end for
-   23:  return C
-
-Key parameters:
-    T_max = 3     (iterations)
-    K     = 20    (candidates for Corrector)
-    α     = 0.65  (visual weight)
-    IoU threshold = 0.9  (early stopping)
-"""
-
 import logging
 import os
 from typing import Dict, List, Optional, Tuple
@@ -57,18 +14,6 @@ logger = logging.getLogger(__name__)
 
 
 class AutoReIDPipeline:
-    """
-    Full Auto-ReID closed-loop inference pipeline.
-
-    This class orchestrates the three modules (Reasoner, HybridRetriever,
-    Corrector) in the iterative self-correction loop described in Algorithm 1.
-
-    Two-stage evaluation strategy:
-      Stage 1 — Visual pre-filtering: use pure visual similarity to shortlist
-                top-N candidates (fast, ensures high recall).
-      Stage 2 — Closed-loop refinement: run Algorithm 1 on the shortlist only
-                (the Corrector only inspects Top-K, not the full gallery).
-    """
 
     def __init__(
         self,
@@ -80,16 +25,7 @@ class AutoReIDPipeline:
         iou_threshold: float = 0.9,
         top_n_prefilt: int = 200,
     ):
-        """
-        Args:
-            reasoner:       Initialized Reasoner (InternVL + HPT weights).
-            retriever:      Initialized HybridRetriever (SigLIP2 encoders).
-            corrector:      Initialized Corrector (same VLM as Reasoner).
-            t_max:          Maximum correction iterations (default 3).
-            k:              Number of candidates for Corrector (default 20).
-            iou_threshold:  Early-stop threshold IoU(C, C_prev) > 0.9 (Algorithm 1 line 16).
-            top_n_prefilt:  Visual pre-filter shortlist size (default 200).
-        """
+        
         self.reasoner = reasoner
         self.retriever = retriever
         self.corrector = corrector
@@ -111,24 +47,7 @@ class AutoReIDPipeline:
         query_pid: int,
         query_camid: int,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Run the full iterative self-correction pipeline for one query.
-
-        Implements Algorithm 1 with the two-stage evaluation strategy.
-
-        Args:
-            query_image:    PIL image of the query person.
-            gallery_images: List of all gallery PIL images.
-            gallery_pids:   Person IDs for gallery images.
-            gallery_camids: Camera IDs for gallery images.
-            query_pid:      Person ID of the query.
-            query_camid:    Camera ID of the query.
-
-        Returns:
-            (sorted_gallery_indices, sorted_scores):
-                sorted_gallery_indices: gallery indices ranked by relevance
-                sorted_scores: corresponding hybrid similarity scores
-        """
+        
         N = len(gallery_images)
 
         # ── Algorithm 1, Line 1: Visual anchor (fixed throughout loop) ──
@@ -229,12 +148,7 @@ class AutoReIDPipeline:
         gallery_camids: List[int],
         max_rank: int = 50,
     ) -> Dict[str, float]:
-        """
-        Evaluate Auto-ReID on a full query-gallery split.
-
-        Returns:
-            Dict with keys: 'mAP', 'rank1', 'rank5', 'rank10'
-        """
+        
         from utils.metrics import eval_func
 
         num_q = len(query_images)
@@ -291,10 +205,7 @@ class AutoReIDPipeline:
     # ------------------------------------------------------------------
 
     def _iou(self, c1: set, c2: set) -> float:
-        """
-        Compute Intersection over Union of two candidate sets.
-        Algorithm 1, line 16: IoU(C, C_prev) > 0.9 → early termination.
-        """
+        
         if not c1 and not c2:
             return 1.0
         if not c1 or not c2:
@@ -308,15 +219,6 @@ class AutoReIDPipeline:
         shortlist_idx: List[int],
         total_gallery_size: int,
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Return full gallery ranking using current (v_q, h_q).
-
-        Within the shortlist, compute hybrid similarity and sort.
-        Images NOT in the shortlist are assigned the minimum score.
-
-        Returns:
-            (sorted_global_indices [N], scores [N])
-        """
         sl_vis = self.retriever._gallery_vis[shortlist_idx]
         sl_txt = self.retriever._gallery_txt[shortlist_idx]
 

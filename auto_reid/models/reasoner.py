@@ -1,18 +1,3 @@
-"""
-reasoner.py - Reasoner module for Auto-ReID.
-
-Implements the Reasoner module:
-    "At iteration t, the Reasoner's role is to generate or refine the
-     textual query T_q^(t)."
-
-Equations:
-    T_q^(0) = M_VLM(I_q, P_struct)                         ... (1)
-    T_q^(t) = M_VLM(I_q, T_q^(t-1), F^(t-1))  for t > 0   ... (2)
-    T_q^(t+1) = LLM(T_q^(t), I_feedback, I_q)              ... (5)
-
-Model: InternVL3.5-8B fine-tuned with HPT (LoRA rank=16, attention layers).
-"""
-
 import os
 import logging
 from typing import Optional
@@ -58,19 +43,6 @@ SYSTEM_PROMPT = (
 
 
 class Reasoner:
-    """
-    VLM-based Reasoner module.
-
-    Wraps InternVL3.5-8B (or compatible InternVL2/3 variant) fine-tuned with
-    Hierarchical Progressive Tuning (HPT) to generate structured descriptions
-    of query person images.
-
-    Usage:
-        reasoner = Reasoner(vlm_model_path="OpenGVLab/InternVL2_5-8B",
-                            lora_checkpoint="path/to/hpt_stage2/")
-        desc = reasoner.initial_description(pil_image)
-        refined = reasoner.refine_description(pil_image, desc, feedback_text)
-    """
 
     def __init__(
         self,
@@ -81,16 +53,6 @@ class Reasoner:
         max_new_tokens: int = 256,
         torch_dtype: torch.dtype = torch.bfloat16,
     ):
-        """
-        Args:
-            vlm_model_path: HuggingFace model ID or local path for InternVL3.5-8B.
-            lora_checkpoint: Path to HPT-trained LoRA adapter directory.
-                             If None, uses the base VLM without fine-tuning.
-            device: Device string, e.g., "cuda" or "cuda:0".
-            load_in_8bit: Load model in 8-bit for memory efficiency (requires bitsandbytes).
-            max_new_tokens: Maximum tokens to generate per description.
-            torch_dtype: Computation dtype; bfloat16 recommended for A100.
-        """
         self.device = device
         self.max_new_tokens = max_new_tokens
         self.torch_dtype = torch_dtype
@@ -130,19 +92,6 @@ class Reasoner:
     # ------------------------------------------------------------------
 
     def initial_description(self, image: Image.Image) -> str:
-        """
-        Generate initial structured description of the query image.
-
-        Implements Equation (1):
-            T_q^(0) = M_VLM(I_q, P_struct)
-
-        Args:
-            image: PIL RGB image of the query person.
-
-        Returns:
-            Structured text description covering gender, age, hair, clothing,
-            footwear, and accessories.
-        """
         return self._generate(image=image, text_prompt=STRUCT_PROMPT)
 
     def refine_description(
@@ -151,21 +100,6 @@ class Reasoner:
         current_desc: str,
         feedback: str,
     ) -> str:
-        """
-        Refine the current query description using Corrector feedback.
-
-        Implements Equations (2) and (5):
-            T_q^(t) = M_VLM(I_q, T_q^(t-1), F^(t-1))
-            T_q^(t+1) = LLM(T_q^(t), I_feedback, I_q)
-
-        Args:
-            image: PIL RGB image of the query person (always included).
-            current_desc: Current textual description T_q^(t).
-            feedback: Feedback instructions I_feedback from the Corrector.
-
-        Returns:
-            Refined description T_q^(t+1).
-        """
         prompt = REFINE_PROMPT_TEMPLATE.format(
             current_desc=current_desc,
             feedback=feedback,
@@ -177,12 +111,6 @@ class Reasoner:
     # ------------------------------------------------------------------
 
     def _generate(self, image: Image.Image, text_prompt: str) -> str:
-        """
-        Run the VLM with an image + text prompt and return the generated text.
-
-        Uses InternVL's chat interface with the image prepended as a pixel
-        value tensor. The system prompt is set to the ReID specialist persona.
-        """
         # InternVL uses a specific chat template; construct the conversation
         # with <image> token in the user message
         generation_config = dict(
@@ -215,13 +143,6 @@ class Reasoner:
         return response.strip()
 
     def _preprocess_image(self, image: Image.Image) -> torch.Tensor:
-        """
-        Preprocess a PIL image into the pixel_values tensor format expected
-        by InternVL's chat method.
-
-        InternVL uses dynamic resolution; we use a single 448×448 tile which
-        is the standard single-image mode.
-        """
         from torchvision import transforms
 
         # InternVL standard normalization

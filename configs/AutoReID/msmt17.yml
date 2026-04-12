@@ -1,5 +1,3 @@
-# Auto-ReID configuration for MSMT17
-# Expected: mAP=89.2%, Rank-1=91.8%
 
 MODEL:
   DEVICE_ID: '0'

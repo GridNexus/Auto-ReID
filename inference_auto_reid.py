@@ -1,17 +1,3 @@
-"""
-inference_auto_reid.py - Auto-ReID iterative inference and evaluation entry point.
-
-Evaluation pipeline:
-    1. Two-stage evaluation: visual pre-filtering + closed-loop refinement
-    2. Algorithm 1: iterative self-correction with T_max=3 iterations
-    3. Evaluation metrics: mAP and Rank-1 (standard ReID protocol)
-
-Usage:
-    python inference_auto_reid.py \\
-        --config configs/AutoReID/msmt17.yml \\
-        AUTO_REID.VLM_CKPT output/autored_msmt17/hpt_stage2/stage2_lora
-"""
-
 import argparse
 import logging
 import os
@@ -51,12 +37,6 @@ def parse_args():
 
 
 def load_dataset_splits(cfg):
-    """
-    Load query and gallery image lists from the configured dataset.
-    Returns:
-        query_list:   [(img_path, pid, camid), ...]
-        gallery_list: [(img_path, pid, camid), ...]
-    """
     dataset_name = cfg.DATASETS.NAMES
     dataset = __factory[dataset_name](root=cfg.DATASETS.ROOT_DIR)
 
@@ -76,10 +56,6 @@ def load_dataset_splits(cfg):
 
 
 def load_images(image_list: List[Tuple], target_size: Tuple[int, int] = (256, 128)) -> List[Image.Image]:
-    """
-    Load PIL images from (img_path, pid, camid) tuples.
-    Images are resized to target_size (H×W), default 256×128.
-    """
     images = []
     for img_path, _, _ in image_list:
         img = Image.open(img_path).convert("RGB")
@@ -89,10 +65,6 @@ def load_images(image_list: List[Tuple], target_size: Tuple[int, int] = (256, 12
 
 
 def build_gallery_captions(gallery_list: List[Tuple]) -> List[str]:
-    """
-    Build gallery caption strings φ(I_g).
-    h_g = f_txt(φ(I_g)), where φ(I_g) is a generic caption or filename.
-    """
     captions = []
     for img_path, pid, camid in gallery_list:
         fname = os.path.basename(img_path)

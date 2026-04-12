@@ -1,23 +1,3 @@
-"""
-attribute_parser.py - Text description → structured attribute key-value pairs.
-
-Used by the Corrector module to perform Semantic Deconstruction:
-    "the monolithic query T_q^(t) is parsed into atomic attribute-value pairs
-     A^(t) = {(k_j, v_j)}_{j=1}^M"
-
-Example:
-    Input:  "A woman in her late 20s has long dark hair and wears a
-             sleeveless white dress."
-    Output: {
-        "Gender":   "Female",
-        "Age":      "late 20s",
-        "Hair":     "long dark",
-        "Upper":    "sleeveless white dress",
-        "Lower":    "dress",
-        "Footwear": "unknown",
-        "Bag":      "None",
-    }
-"""
 
 import re
 from typing import Dict, Optional
@@ -144,18 +124,6 @@ def parse_attributes_rule_based(text: str) -> Dict[str, str]:
 
 
 def parse_attributes_from_vlm_response(vlm_output: str) -> Dict[str, str]:
-    """
-    Parse structured VLM output into attribute dict.
-    Expects the VLM (after HPT Stage 1 fine-tuning) to produce lines like:
-        Gender: Female
-        Age: late 20s
-        Hair: long dark
-        Upper: sleeveless white dress
-        Lower: white dress
-        Footwear: white sandals
-        Bag: None
-    Falls back to rule-based parsing if format is unexpected.
-    """
     attrs: Dict[str, str] = {}
     for line in vlm_output.strip().splitlines():
         if ':' in line:
@@ -179,16 +147,6 @@ def parse_attributes_from_vlm_response(vlm_output: str) -> Dict[str, str]:
 
 
 def build_attribute_question(key: str, value: str) -> str:
-    """
-    Build a natural-language question for the Corrector's ACS step.
-    The VLM answers this question about a candidate image.
-
-    
-        "Using the discrimination capability learned in Stage 2,
-         the VLM estimates the probability P(v|I_cj, k)"
-
-    Returns a yes/no question string.
-    """
     templates = {
         "Gender":   "Is the person in the image {val}?",
         "Age":      "Does the person appear to be in their {val}?",
@@ -210,10 +168,6 @@ def build_attribute_question(key: str, value: str) -> str:
 
 
 def build_negative_constraint(key: str, value: str) -> str:
-    """
-    Build a negative-constraint feedback instruction:
-        "Exclude candidates with {attribute}."
-    """
     if key == "Bag" and value.lower() != "none":
         return f"Exclude candidates carrying a {value}."
     elif key == "Bag" and value.lower() == "none":
@@ -222,10 +176,6 @@ def build_negative_constraint(key: str, value: str) -> str:
 
 
 def build_emphasis_constraint(key: str, value: str) -> str:
-    """
-    Build an attribute-emphasis feedback instruction:
-        "Prioritize candidates with {attribute}."
-    """
     if key == "Bag" and value.lower() == "none":
         return "Prioritize candidates who are NOT carrying any bag."
     elif key == "Bag":

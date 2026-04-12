@@ -1,5 +1,3 @@
-# Auto-ReID configuration for Occluded-Duke
-# Expected: mAP=72.4%, Rank-1=79.5%
 
 MODEL:
   DEVICE_ID: '0'

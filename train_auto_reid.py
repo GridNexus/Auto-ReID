@@ -1,31 +1,3 @@
-"""
-train_auto_reid.py - HPT training entry point for Auto-ReID.
-
-Hierarchical Progressive Tuning in two stages:
-    Stage 1: Fine-Grained Attribute Alignment
-    Stage 2: Identity Verification and Feedback Generation
-
-Usage:
-    # Stage 1 training (attribute alignment)
-    python train_auto_reid.py \\
-        --config configs/AutoReID/msmt17.yml \\
-        AUTO_REID.HPT_STAGE 1 \\
-        OUTPUT_DIR output/autored_msmt17
-
-    # Stage 2 training (multi-task, from Stage 1 checkpoint)
-    python train_auto_reid.py \\
-        --config configs/AutoReID/msmt17.yml \\
-        AUTO_REID.HPT_STAGE 2 \\
-        AUTO_REID.STAGE1_CKPT output/autored_msmt17/hpt_stage1/stage1_lora \\
-        OUTPUT_DIR output/autored_msmt17
-
-Training configuration:
-    - VLM: InternVL3.5-8B
-    - LoRA rank=16, target=attention layers
-    - lr=1e-5, epochs=3, batch_size=4 per GPU
-    - Recommended hardware: 4×NVIDIA A100 GPUs
-"""
-
 import argparse
 import logging
 import os
@@ -60,10 +32,6 @@ def parse_args():
 
 
 def build_image_list_from_dataloader(cfg):
-    """
-    Extract (img_path, pid, camid) tuples from the ReID dataset.
-    Uses existing dataset infrastructure.
-    """
     from datasets.make_dataloader import __factory
     dataset_name = cfg.DATASETS.NAMES
     dataset = __factory[dataset_name](root=cfg.DATASETS.ROOT_DIR)
