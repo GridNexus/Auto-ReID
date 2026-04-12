@@ -1,0 +1,46 @@
+# Auto-ReID configuration for LTCC (long-term cloth-changing)
+# Expected: mAP=66.3%, Rank-1=79.7%
+
+MODEL:
+  DEVICE_ID: '0'
+
+INPUT:
+  SIZE_TRAIN: [256, 128]
+  SIZE_TEST: [256, 128]
+  PROB: 0.5
+  RE_PROB: 0.5
+  PADDING: 10
+  PIXEL_MEAN: [0.485, 0.456, 0.406]
+  PIXEL_STD: [0.229, 0.224, 0.225]
+
+DATASETS:
+  NAMES: 'ltcc'
+  ROOT_DIR: '../data'
+
+DATALOADER:
+  NUM_WORKERS: 8
+
+TEST:
+  IMS_PER_BATCH: 64
+
+AUTO_REID:
+  VLM_MODEL: 'OpenGVLab/InternVL2_5-8B'
+  VIS_ENCODER: 'google/siglip2-base-patch16-224'
+  LORA_RANK: 16
+  LORA_ALPHA: 32
+  LORA_DROPOUT: 0.05
+  LORA_TARGET_MODULES: ['q_proj', 'v_proj', 'k_proj', 'o_proj']
+  ALPHA: 0.65
+  T_MAX: 3
+  K: 20
+  IOU_THRESHOLD: 0.9
+  TAU_LOW: 0.4
+  TOP_N_PREFILT: 200
+  HPT_STAGE: 1
+  HPT_LR: 1.0e-5
+  HPT_EPOCHS: 3
+  HPT_BATCH_SIZE: 4
+  STAGE1_CKPT: ''
+  VLM_CKPT: ''
+
+OUTPUT_DIR: '../logs/auto_reid/ltcc'

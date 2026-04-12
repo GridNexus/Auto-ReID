@@ -220,3 +220,24 @@ ENV/
 # Rope project settings
 .ropeproject
 
+# Auto-ReID: output directories (checkpoints, logs)
+output/
+logs/
+../logs/
+
+# Claude Code session metadata
+.claude/
+
+# Model weights and large files
+*.pth
+*.pt
+*.bin
+*.safetensors
+
+# Dataset files (download separately)
+data/
+../data/
+
+# Numpy arrays / cached features
+*.npy
+*.npz

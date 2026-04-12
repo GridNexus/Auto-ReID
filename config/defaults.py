@@ -1,189 +1,105 @@
 from yacs.config import CfgNode as CN
 
-# -----------------------------------------------------------------------------
-# Convention about Training / Test specific parameters
-# -----------------------------------------------------------------------------
-# Whenever an argument can be either used for training or for testing, the
-# corresponding name will be post-fixed by a _TRAIN for a training parameter,
-
-# -----------------------------------------------------------------------------
-# Config definition
-# -----------------------------------------------------------------------------
-
 _C = CN()
-# -----------------------------------------------------------------------------
-# MODEL
-# -----------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------- #
+# Device
+# ---------------------------------------------------------------------------- #
 _C.MODEL = CN()
-# Using cuda or cpu for training
+# Device to use: "cuda" or "cpu"
 _C.MODEL.DEVICE = "cuda"
-# ID number of GPU
+# GPU device ID (single GPU; for multi-GPU set via CUDA_VISIBLE_DEVICES)
 _C.MODEL.DEVICE_ID = '0'
-# Name of backbone
-_C.MODEL.NAME = 'resnet50'
-# Last stride of backbone
-_C.MODEL.LAST_STRIDE = 1
-# Path to pretrained model of backbone
-_C.MODEL.PRETRAIN_PATH = ''
 
-# Use ImageNet pretrained model to initialize backbone or use self trained model to initialize the whole model
-# Options: 'imagenet' , 'self' , 'finetune'
-_C.MODEL.PRETRAIN_CHOICE = 'imagenet'
-
-# If train with BNNeck, options: 'bnneck' or 'no'
-_C.MODEL.NECK = 'bnneck'
-# If train loss include center loss, options: 'yes' or 'no'. Loss with center loss has different optimizer configuration
-_C.MODEL.IF_WITH_CENTER = 'no'
-
-_C.MODEL.ID_LOSS_TYPE = 'softmax'
-_C.MODEL.ID_LOSS_WEIGHT = 1.0
-_C.MODEL.TRIPLET_LOSS_WEIGHT = 1.0
-
-_C.MODEL.METRIC_LOSS_TYPE = 'triplet'
-# If train with multi-gpu ddp mode, options: 'True', 'False'
-_C.MODEL.DIST_TRAIN = False
-# If train with soft triplet loss, options: 'True', 'False'
-_C.MODEL.NO_MARGIN = False
-# If train with label smooth, options: 'on', 'off'
-_C.MODEL.IF_LABELSMOOTH = 'on'
-# If train with arcface loss, options: 'True', 'False'
-_C.MODEL.COS_LAYER = False
-
-# Transformer setting
-_C.MODEL.DROP_PATH = 0.1
-_C.MODEL.DROP_OUT = 0.0
-_C.MODEL.ATT_DROP_RATE = 0.0
-_C.MODEL.TRANSFORMER_TYPE = 'None'
-_C.MODEL.STRIDE_SIZE = [16, 16]
-
-# JPM Parameter
-_C.MODEL.JPM = False
-_C.MODEL.SHIFT_NUM = 5
-_C.MODEL.SHUFFLE_GROUP = 2
-_C.MODEL.DEVIDE_LENGTH = 4
-_C.MODEL.RE_ARRANGE = True
-
-# SIE Parameter
-_C.MODEL.SIE_COE = 3.0
-_C.MODEL.SIE_CAMERA = False
-_C.MODEL.SIE_VIEW = False
-
-# -----------------------------------------------------------------------------
-# INPUT
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------- #
+# Input
+# ---------------------------------------------------------------------------- #
 _C.INPUT = CN()
-# Size of the image during training
-_C.INPUT.SIZE_TRAIN = [384, 128]
-# Size of the image during test
-_C.INPUT.SIZE_TEST = [384, 128]
-# Random probability for image horizontal flip
+# Image size for training [H, W] — 256×128
+_C.INPUT.SIZE_TRAIN = [256, 128]
+# Image size for inference [H, W]
+_C.INPUT.SIZE_TEST = [256, 128]
+# Random horizontal flip probability (data augmentation)
 _C.INPUT.PROB = 0.5
-# Random probability for random erasing
+# Random erasing probability (data augmentation)
 _C.INPUT.RE_PROB = 0.5
-# Values to be used for image normalization
+# ImageNet normalization mean
 _C.INPUT.PIXEL_MEAN = [0.485, 0.456, 0.406]
-# Values to be used for image normalization
+# ImageNet normalization std
 _C.INPUT.PIXEL_STD = [0.229, 0.224, 0.225]
-# Value of padding size
+# Padding size for random crop
 _C.INPUT.PADDING = 10
 
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------- #
 # Dataset
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------- #
 _C.DATASETS = CN()
-# List of the dataset names for training, as present in paths_catalog.py
-_C.DATASETS.NAMES = ('market1501')
-# Root directory where datasets should be used (and downloaded if not found)
-_C.DATASETS.ROOT_DIR = ('../data')
+# Dataset name; one of: market1501, msmt17, cuhk03, occ_duke, prcc, ltcc
+_C.DATASETS.NAMES = 'market1501'
+# Root directory containing all dataset folders
+_C.DATASETS.ROOT_DIR = '../data'
 
-
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------- #
 # DataLoader
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------- #
 _C.DATALOADER = CN()
 # Number of data loading threads
 _C.DATALOADER.NUM_WORKERS = 8
-# Sampler for data loading
-_C.DATALOADER.SAMPLER = 'softmax'
-# Number of instance for one batch
-_C.DATALOADER.NUM_INSTANCE = 16
+# Number of images per training batch
+_C.DATALOADER.IMS_PER_BATCH = 64
 
 # ---------------------------------------------------------------------------- #
-# Solver
+# Test / Inference
 # ---------------------------------------------------------------------------- #
-_C.SOLVER = CN()
-# Name of optimizer
-_C.SOLVER.OPTIMIZER_NAME = "Adam"
-# Number of max epoches
-_C.SOLVER.MAX_EPOCHS = 100
-# Base learning rate
-_C.SOLVER.BASE_LR = 3e-4
-# Whether using larger learning rate for fc layer
-_C.SOLVER.LARGE_FC_LR = False
-# Factor of learning bias
-_C.SOLVER.BIAS_LR_FACTOR = 1
-# Factor of learning bias
-_C.SOLVER.SEED = 1234
-# Momentum
-_C.SOLVER.MOMENTUM = 0.9
-# Margin of triplet loss
-_C.SOLVER.MARGIN = 0.3
-# Learning rate of SGD to learn the centers of center loss
-_C.SOLVER.CENTER_LR = 0.5
-# Balanced weight of center loss
-_C.SOLVER.CENTER_LOSS_WEIGHT = 0.0005
-
-# Settings of weight decay
-_C.SOLVER.WEIGHT_DECAY = 0.0005
-_C.SOLVER.WEIGHT_DECAY_BIAS = 0.0005
-
-# decay rate of learning rate
-_C.SOLVER.GAMMA = 0.1
-# decay step of learning rate
-_C.SOLVER.STEPS = (40, 70)
-# warm up factor
-_C.SOLVER.WARMUP_FACTOR = 0.01
-#  warm up epochs
-_C.SOLVER.WARMUP_EPOCHS = 5
-# method of warm up, option: 'constant','linear'
-_C.SOLVER.WARMUP_METHOD = "linear"
-
-_C.SOLVER.COSINE_MARGIN = 0.5
-_C.SOLVER.COSINE_SCALE = 30
-
-# epoch number of saving checkpoints
-_C.SOLVER.CHECKPOINT_PERIOD = 10
-# iteration of display training log
-_C.SOLVER.LOG_PERIOD = 100
-# epoch number of validation
-_C.SOLVER.EVAL_PERIOD = 10
-# Number of images per batch
-# This is global, so if we have 8 GPUs and IMS_PER_BATCH = 128, each GPU will
-# contain 16 images per batch
-_C.SOLVER.IMS_PER_BATCH = 64
-
-# ---------------------------------------------------------------------------- #
-# TEST
-# ---------------------------------------------------------------------------- #
-
 _C.TEST = CN()
-# Number of images per batch during test
+# Number of images per batch during gallery feature extraction
 _C.TEST.IMS_PER_BATCH = 128
-# If test with re-ranking, options: 'True','False'
-_C.TEST.RE_RANKING = False
-# Path to trained model
-_C.TEST.WEIGHT = ""
-# Which feature of BNNeck to be used for test, before or after BNNneck, options: 'before' or 'after'
-_C.TEST.NECK_FEAT = 'after'
-# Whether feature is nomalized before test, if yes, it is equivalent to cosine distance
-_C.TEST.FEAT_NORM = 'yes'
 
-# Name for saving the distmat after testing.
-_C.TEST.DIST_MAT = "dist_mat.npy"
-# Whether calculate the eval score option: 'True', 'False'
-_C.TEST.EVAL = False
 # ---------------------------------------------------------------------------- #
-# Misc options
+# Output
 # ---------------------------------------------------------------------------- #
-# Path to checkpoint and saved log of trained model
+# Directory for saving logs and checkpoints
 _C.OUTPUT_DIR = ""
+
+# ---------------------------------------------------------------------------- #
+# AUTO_REID — Auto-ReID
+# "Iterative Self-Correction for Text-Driven Person Re-Identification
+#  with Large Vision-Language Models"
+# ---------------------------------------------------------------------------- #
+_C.AUTO_REID = CN()
+
+# VLM backbone: InternVL3.5-8B
+_C.AUTO_REID.VLM_MODEL = "OpenGVLab/InternVL2_5-8B"
+
+# Visual & text encoder: SigLIP2-base-patch16-224
+_C.AUTO_REID.VIS_ENCODER = "google/siglip2-base-patch16-224"
+
+# LoRA hyperparameters (rank=16, attention layers only)
+_C.AUTO_REID.LORA_RANK = 16
+_C.AUTO_REID.LORA_ALPHA = 32
+_C.AUTO_REID.LORA_DROPOUT = 0.05
+# Target modules for LoRA adaptation (attention projection layers)
+_C.AUTO_REID.LORA_TARGET_MODULES = ["q_proj", "v_proj", "k_proj", "o_proj"]
+
+# Hybrid Retriever mixing coefficient (α=0.65, best performance)
+# S^(t)(I_q, I_g) = α·cos(v_q, v_g) + (1-α)·cos(h_q^(t), h_g)
+_C.AUTO_REID.ALPHA = 0.65
+
+# Iterative inference loop parameters (Algorithm 1)
+_C.AUTO_REID.T_MAX = 3           # maximum correction iterations
+_C.AUTO_REID.K = 20              # candidate set size for ACS verification
+_C.AUTO_REID.IOU_THRESHOLD = 0.9 # early-stop: IoU(C, C_prev) > 0.9 (Algorithm 1 line 16)
+_C.AUTO_REID.TAU_LOW = 0.4       # ACS conflict threshold: ACS(k,v) < τ_low → conflict
+
+# Two-stage evaluation: visual pre-filtering shortlist size
+_C.AUTO_REID.TOP_N_PREFILT = 200
+
+# HPT training
+_C.AUTO_REID.HPT_STAGE = 1       # 1: fine-grained attribute alignment; 2: multi-task
+_C.AUTO_REID.HPT_LR = 1e-5       # LoRA fine-tuning learning rate
+_C.AUTO_REID.HPT_EPOCHS = 3      # training epochs per stage
+_C.AUTO_REID.HPT_BATCH_SIZE = 4  # per-GPU batch size (4×A100 recommended)
+
+# Checkpoint paths
+_C.AUTO_REID.STAGE1_CKPT = ""   # Stage 1 LoRA checkpoint dir (required for Stage 2)
+_C.AUTO_REID.VLM_CKPT = ""      # Fine-tuned VLM LoRA checkpoint dir (for inference)

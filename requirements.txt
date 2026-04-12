@@ -1,5 +1,12 @@
-torch
-torchvision
-timm
+torch>=1.10.0
+torchvision>=0.11.0
+timm>=0.6.0
 yacs
 opencv-python
+# Auto-ReID additional dependencies
+transformers>=4.37.0
+peft>=0.8.0
+accelerate>=0.27.0
+Pillow>=9.0
+sentencepiece
+einops
